@@ -21,7 +21,7 @@ env:
   UIPATH_CLI_VERSION: '1.205.0'
 
   PROJECT_PATH: '.'
-  OUTPUT_PATH: 'output'
+  OUTPUT_PATH: '../uipath-build-output'
   ORCHESTRATOR_FOLDER: 'Shared'
 
 jobs:
