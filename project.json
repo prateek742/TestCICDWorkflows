@@ -1,7 +1,7 @@
 {
   "name": "newREF",
   "projectId": "cb6db812-0abb-447d-8acf-417c90a98078",
-  "description": "Robotic Enterprise Framework",
+  "description": "Robotic Enterprise Framework CICD DEmo",
   "main": "Main.xaml",
   "dependencies": {
     "UiPath.Excel.Activities": "[3.7.0-preview]",
