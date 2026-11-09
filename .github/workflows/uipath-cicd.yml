@@ -51,7 +51,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       # ------------------------------------------
-      # 3. Setup .NET runtime for UiPath packager
+      # 3. Setup .NET
       # ------------------------------------------
 
       - name: Setup .NET
@@ -74,7 +74,10 @@ jobs:
             throw "npm installation failed"
           }
 
+          Write-Host "Node.js version:"
           node --version
+
+          Write-Host "npm version:"
           npm --version
 
       # ------------------------------------------
@@ -136,7 +139,7 @@ jobs:
           }
 
           if ($targetFramework -eq "Windows-Legacy") {
-            throw "Windows-Legacy requires the separate UiPath rpa-legacy packaging workflow."
+            throw "Windows-Legacy requires a separate legacy packaging workflow."
           }
 
           Write-Host "Project: $projectName"
@@ -194,6 +197,7 @@ jobs:
 
       # ------------------------------------------
       # 8. Package UiPath Studio project
+      # IMPORTANT: Output is outside project root
       # ------------------------------------------
 
       - name: Build UiPath package
@@ -204,15 +208,36 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
 
+          $outputPath = Join-Path `
+            $env:GITHUB_WORKSPACE `
+            $env:OUTPUT_PATH
+
+          $projectRoot = [System.IO.Path]::GetFullPath(
+            $env:GITHUB_WORKSPACE
+          )
+
+          $resolvedOutput = [System.IO.Path]::GetFullPath(
+            $outputPath
+          )
+
+          if ($resolvedOutput.StartsWith(
+            $projectRoot,
+            [System.StringComparison]::OrdinalIgnoreCase
+          )) {
+            throw "Package output must be outside project directory"
+          }
+
           New-Item -ItemType Directory `
-            -Path $env:OUTPUT_PATH `
+            -Path $resolvedOutput `
             -Force | Out-Null
 
           Write-Host "Packaging UiPath project..."
+          Write-Host "Project: $projectRoot"
+          Write-Host "Output: $resolvedOutput"
 
           uip rpa pack `
-            "$env:PROJECT_PATH" `
-            "$env:OUTPUT_PATH" `
+            "$projectRoot" `
+            "$resolvedOutput" `
             --package-version "$env:PACKAGE_VERSION"
 
           if ($LASTEXITCODE -ne 0) {
@@ -220,13 +245,13 @@ jobs:
           }
 
           $packages = @(
-            Get-ChildItem $env:OUTPUT_PATH `
+            Get-ChildItem $resolvedOutput `
               -Filter "*.nupkg" `
               -File
           )
 
           if ($packages.Count -ne 1) {
-            throw "Expected exactly one .nupkg package. Found $($packages.Count)"
+            throw "Expected exactly one NuGet package. Found $($packages.Count)"
           }
 
           $packagePath = $packages[0].FullName
@@ -304,7 +329,6 @@ jobs:
             $processKey = $existingProcesses[0].Key
 
             Write-Host "Existing process found: $processKey"
-            Write-Host "Updating process to version $env:PACKAGE_VERSION"
 
             uip or processes update-version `
               "$processKey" `
@@ -347,15 +371,10 @@ jobs:
           @"
           ## UiPath CI/CD Deployment Successful
 
-          Project: $env:PROJECT_NAME
-
-          Version: $env:PACKAGE_VERSION
-
-          Branch: main
-
-          Runner: GitHub-hosted Windows
-
-          Orchestrator folder: Shared
-
-          Deployment status: Successful
+          - Project: $env:PROJECT_NAME
+          - Package version: $env:PACKAGE_VERSION
+          - Branch: main
+          - Runner: GitHub-hosted Windows
+          - Orchestrator folder: Shared
+          - Status: Successful
           "@ >> $env:GITHUB_STEP_SUMMARY
